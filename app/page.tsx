@@ -18,31 +18,68 @@ interface ServoState {
   [key: string]: number;
 }
 
+const PIN_MAP: Record<string, string> = {
+  "12": "Index (Left)",
+  "18": "Middle (Left)",
+  "13": "Index (Right)",
+  "19": "Middle (Right)",
+};
+
 export default function MarionnetteControl() {
   const [state, setState] = useState<ServoState | null>(null);
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    // Remplace par l'IP de ta Raspberry si nécessaire
-    const socket = new WebSocket(`ws://${window.location.host}/ws`);
+    let socket: WebSocket;
+    let reconnectTimeout: NodeJS.Timeout;
 
-    socket.onopen = () => setIsConnected(true);
-    socket.onclose = () => setIsConnected(false);
-    socket.onmessage = (event) => {
-      try {
-        const data = JSON.parse(event.data);
-        setState(data);
-      } catch (err) {
-        console.error("Erreur parsing JSON:", err);
-      }
+    const connect = () => {
+      const WS_URL = "ws://127.0.0.1:8000/ws";
+
+      socket = new WebSocket(WS_URL);
+
+      socket.onopen = () => {
+        console.log("WebSocket connected");
+        setIsConnected(true);
+      };
+
+      socket.onclose = () => {
+        console.log("WebSocket disconnected");
+        setIsConnected(false);
+
+        reconnectTimeout = setTimeout(connect, 2000);
+      };
+
+      socket.onerror = () => {
+        socket.close();
+      };
+
+      socket.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+
+          if (msg.type === "servo_update") {
+            setState(msg.data);
+          }
+        } catch (err) {
+          console.error("JSON parse error:", err);
+        }
+      };
     };
 
-    return () => socket.close();
+    connect();
+
+    return () => {
+      socket?.close();
+      clearTimeout(reconnectTimeout);
+    };
   }, []);
 
   const sendCommand = useCallback(async (route: string) => {
     try {
-      await fetch(route, { method: "POST" });
+      await fetch(`http://raspberrypi:8000${route}`, {
+        method: "POST",
+      });
     } catch (err) {
       console.error(`Erreur lors de l'appel à ${route}:`, err);
     }
@@ -71,7 +108,9 @@ export default function MarionnetteControl() {
             }`}
           >
             <span
-              className={`inline-block w-2 h-2 rounded-full mr-2 ${isConnected ? "bg-green-400 animate-pulse" : "bg-red-400"}`}
+              className={`inline-block w-2 h-2 rounded-full mr-2 ${
+                isConnected ? "bg-green-400 animate-pulse" : "bg-red-400"
+              }`}
             ></span>
             {isConnected ? "Online" : "Offline"}
           </div>
@@ -120,13 +159,16 @@ export default function MarionnetteControl() {
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-                  {Object.entries(state).map(([name, value]) => (
-                    <ServoCard key={name} name={name} value={value} />
+                  {Object.entries(state).map(([pin, value]) => (
+                    <ServoCard
+                      key={pin}
+                      name={PIN_MAP[pin] || `Servo ${pin}`}
+                      value={value}
+                    />
                   ))}
                 </div>
               )}
 
-              {/* Debug View */}
               {state && (
                 <div className="mt-8 pt-6 border-t border-white/5">
                   <details className="cursor-pointer group">
