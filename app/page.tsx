@@ -34,7 +34,7 @@ export default function MarionnetteControl() {
     let reconnectTimeout: NodeJS.Timeout;
 
     const connect = () => {
-      const WS_URL = "ws://127.0.0.1:8000/ws";
+      const WS_URL = "ws://100.127.151.6:8000/ws";
 
       socket = new WebSocket(WS_URL);
 
