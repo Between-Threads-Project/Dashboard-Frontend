@@ -28,6 +28,34 @@ const PIN_MAP: Record<string, string> = {
 export default function MarionnetteControl() {
   const [state, setState] = useState<ServoState | null>(null);
   const [isConnected, setIsConnected] = useState(false);
+  const isDisabled = !isConnected;
+
+  type Toast = {
+    id: number;
+    type: "success" | "error";
+    message: string;
+  };
+
+  const [toasts, setToasts] = useState<Toast[]>([]);
+
+  const addToast = (type: "success" | "error", message: string) => {
+    const id = Date.now();
+
+    setToasts((prev) => [...prev, { id, type, message }]);
+
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 4000);
+  };
+
+  function getErrorMessage(error: unknown): string {
+    if (error instanceof Error) return error.message;
+    if (error && typeof error === "object" && "message" in error) {
+      return String((error as { message: unknown }).message);
+    }
+    if (typeof error === "string") return error;
+    return "Unknown error";
+  }
 
   useEffect(() => {
     let socket: WebSocket;
@@ -75,15 +103,42 @@ export default function MarionnetteControl() {
     };
   }, []);
 
-  const sendCommand = useCallback(async (route: string) => {
-    try {
-      await fetch(`http://${window.location.hostname}:8000${route}`, {
-        method: "POST",
-      });
-    } catch (err) {
-      console.error(`Erreur lors de l'appel à ${route}:`, err);
-    }
-  }, []);
+  const sendCommand = useCallback(
+    async (route: string) => {
+      if (!isConnected) {
+        console.log("test");
+        addToast("error", "WebSocket not connected");
+        return;
+      }
+
+      try {
+        const res = await fetch(
+          `http://${window.location.hostname}:8000${route}`,
+          { method: "POST" },
+        );
+
+        let data = null;
+
+        try {
+          data = await res.json();
+        } catch {
+          // réponse non JSON
+        }
+
+        if (!res.ok) {
+          const errorMessage =
+            data?.detail || data?.message || res.statusText || "Unknown error";
+
+          throw new Error(errorMessage);
+        }
+
+        addToast("success", `${route} executed successfully`);
+      } catch (err: unknown) {
+        addToast("error", `${route} failed: ${getErrorMessage(err)}`);
+      }
+    },
+    [isConnected],
+  );
 
   return (
     <main className="min-h-screen bg-[#0f172a] text-slate-100 p-4 md:p-8 font-sans">
@@ -129,18 +184,21 @@ export default function MarionnetteControl() {
               icon={<Play size={18} className="text-green-500" />}
               color="hover:bg-green-500/20"
               onClick={() => sendCommand("/start")}
+              disabled={isDisabled}
             />
             <ActionButton
               label="Launch"
               icon={<Activity size={18} className="text-blue-500" />}
               color="hover:bg-blue-500/20"
               onClick={() => sendCommand("/main")}
+              disabled={isDisabled}
             />
             <ActionButton
               label="End position"
               icon={<Square size={18} className="text-red-500" />}
               color="hover:bg-red-500/20"
               onClick={() => sendCommand("/end")}
+              disabled={isDisabled}
             />
           </section>
 
@@ -184,6 +242,21 @@ export default function MarionnetteControl() {
             </div>
           </section>
         </div>
+      </div>
+      <div className="fixed bottom-6 right-6 flex flex-col gap-3 z-50">
+        {toasts.map((toast) => (
+          <div
+            key={toast.id}
+            className={`px-4 py-3 rounded-xl shadow-lg border text-sm font-medium backdrop-blur-md transition-all
+              ${
+                toast.type === "success"
+                  ? "bg-green-500/10 border-green-500/40 text-green-400"
+                  : "bg-red-500/10 border-red-500/40 text-red-400"
+              }`}
+          >
+            {toast.message}
+          </div>
+        ))}
       </div>
     </main>
   );
