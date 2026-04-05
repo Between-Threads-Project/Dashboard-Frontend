@@ -77,7 +77,7 @@ export default function MarionnetteControl() {
 
   const sendCommand = useCallback(async (route: string) => {
     try {
-      await fetch(`http://raspberrypi:8000${route}`, {
+      await fetch(`http://100.127.151.6:8000${route}`, {
         method: "POST",
       });
     } catch (err) {
