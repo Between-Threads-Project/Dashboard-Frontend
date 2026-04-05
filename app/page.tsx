@@ -34,7 +34,7 @@ export default function MarionnetteControl() {
     let reconnectTimeout: NodeJS.Timeout;
 
     const connect = () => {
-      const WS_URL = "ws://100.127.151.6:8000/ws";
+      const WS_URL = `ws://${window.location.hostname}:8000/ws`;
 
       socket = new WebSocket(WS_URL);
 
@@ -77,7 +77,7 @@ export default function MarionnetteControl() {
 
   const sendCommand = useCallback(async (route: string) => {
     try {
-      await fetch(`http://100.127.151.6:8000${route}`, {
+      await fetch(`http://${window.location.hostname}:8000${route}`, {
         method: "POST",
       });
     } catch (err) {
