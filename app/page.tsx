@@ -7,11 +7,12 @@ import ServoCard from "@/components/servo-card";
 import {
   Cpu,
   PlayCircle,
-  Play,
   Activity,
   Square,
   RefreshCw,
   Settings2,
+  SkipForward,
+  SkipBack,
 } from "lucide-react";
 
 interface ServoState {
@@ -29,6 +30,7 @@ export default function MarionnetteControl() {
   const [state, setState] = useState<ServoState | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const isDisabled = !isConnected;
+  const [isReceiverRunning, setIsReceiverRunning] = useState(false);
 
   type Toast = {
     id: number;
@@ -75,11 +77,14 @@ export default function MarionnetteControl() {
         console.log("WebSocket disconnected");
         setIsConnected(false);
 
+        setState(null);
+
         reconnectTimeout = setTimeout(connect, 2000);
       };
 
       socket.onerror = () => {
         socket.close();
+        setState(null);
       };
 
       socket.onmessage = (event) => {
@@ -106,7 +111,6 @@ export default function MarionnetteControl() {
   const sendCommand = useCallback(
     async (route: string) => {
       if (!isConnected) {
-        console.log("test");
         addToast("error", "WebSocket not connected");
         return;
       }
@@ -126,11 +130,13 @@ export default function MarionnetteControl() {
         }
 
         if (!res.ok) {
-          const errorMessage =
-            data?.detail || data?.message || res.statusText || "Unknown error";
-
-          throw new Error(errorMessage);
+          throw new Error(
+            data?.detail || data?.message || res.statusText || "Unknown error",
+          );
         }
+
+        if (route === "/start_receiver") setIsReceiverRunning(true);
+        if (route === "/stop_receiver") setIsReceiverRunning(false);
 
         addToast("success", `${route} executed successfully`);
       } catch (err: unknown) {
@@ -181,22 +187,40 @@ export default function MarionnetteControl() {
 
             <ActionButton
               label="Start position"
-              icon={<Play size={18} className="text-green-500" />}
-              color="hover:bg-green-500/20"
+              icon={<SkipForward size={18} className="text-blue-500" />}
+              color="hover:bg-blue-500/20"
               onClick={() => sendCommand("/start")}
               disabled={isDisabled}
             />
             <ActionButton
-              label="Launch"
-              icon={<Activity size={18} className="text-blue-500" />}
-              color="hover:bg-blue-500/20"
-              onClick={() => sendCommand("/main")}
+              label={
+                isReceiverRunning
+                  ? "Stop real time control"
+                  : "Launch real time control"
+              }
+              icon={
+                isReceiverRunning ? (
+                  <Square size={18} className="text-red-500" />
+                ) : (
+                  <Activity size={18} className="text-green-500" />
+                )
+              }
+              color={
+                isReceiverRunning
+                  ? "hover:bg-red-500/20"
+                  : "hover:bg-green-500/20"
+              }
+              onClick={() =>
+                sendCommand(
+                  isReceiverRunning ? "/stop_receiver" : "/start_receiver",
+                )
+              }
               disabled={isDisabled}
             />
             <ActionButton
               label="End position"
-              icon={<Square size={18} className="text-red-500" />}
-              color="hover:bg-red-500/20"
+              icon={<SkipBack size={18} className="text-yellow-500" />}
+              color="hover:bg-yellow-500/20"
               onClick={() => sendCommand("/end")}
               disabled={isDisabled}
             />
