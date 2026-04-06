@@ -1,4 +1,4 @@
-# Between Threads - Dashboard Frontend
+# Between Threads - Dashboard
 
 This repository contains the web interface used as the main dashboard for controlling the puppet. It provides a user-friendly interface to monitor and control the puppet's movements and interactions.
 
@@ -20,7 +20,7 @@ This repository contains the web interface used as the main dashboard for contro
 
 ```bash
 cd ~/Desktop
-git clone https://github.com/Between-Threads-Project/Dashboard-Frontend
+git clone https://github.com/Between-Threads-Project/Dashboard
 cd Dashboard
 ```
 
